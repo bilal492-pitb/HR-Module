@@ -1,0 +1,30 @@
+{
+  "name": "hr-management-system",
+  "version": "1.0.0",
+  "description": "HR Management System",
+  "main": "backend/src/server.js",
+  "scripts": {
+    "start": "node backend/src/server.js",
+    "dev": "nodemon backend/src/server.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "cors": "^2.8.5",
+    "sequelize": "^6.35.2",
+    "sqlite3": "^5.1.7",
+    "bcryptjs": "^2.4.3",
+    "jsonwebtoken": "^9.0.2",
+    "dotenv": "^16.3.1",
+    "multer": "^1.4.5-lts.1",
+    "morgan": "^1.10.0",
+    "helmet": "^7.1.0",
+    "compression": "^1.7.4",
+    "express-validator": "^7.0.1",
+    "nodemailer": "^6.9.7",
+    "winston": "^3.11.0",
+    "lz-string": "^1.5.0"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.2"
+  }
+}
