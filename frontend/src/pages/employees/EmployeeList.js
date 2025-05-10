@@ -33,7 +33,8 @@ import {
   Storage as StorageIcon,
   CleaningServices as CleaningServicesIcon,
   PersonAdd as PersonAddIcon,
-  ImportExport as ImportExportIcon
+  ImportExport as ImportExportIcon,
+  Assessment as AssessmentIcon
 } from '@mui/icons-material';
 import { DataGrid } from '@mui/x-data-grid';
 import { AuthContext } from '../../context/AuthContext';
@@ -682,7 +683,7 @@ const EmployeeList = () => {
     {
       field: 'actions',
       headerName: 'Actions',
-      width: 150,
+      width: 180,
       sortable: false,
       renderCell: (params) => (
         <Box>
@@ -692,6 +693,15 @@ const EmployeeList = () => {
               onClick={() => navigate(`/employees/${params.row.id}`)}
             >
               <ViewIcon fontSize="small" />
+            </IconButton>
+          </Tooltip>
+          
+          <Tooltip title="ICT Chart">
+            <IconButton 
+              size="small" 
+              onClick={() => navigate(`/employees/${params.row.id}/ict-chart`)}
+            >
+              <AssessmentIcon fontSize="small" />
             </IconButton>
           </Tooltip>
           

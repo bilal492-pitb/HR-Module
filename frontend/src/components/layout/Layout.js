@@ -283,6 +283,26 @@ const Layout = () => {
               </ListItemButton>
             </List>
           </Collapse>
+
+          {/* Roaster Management Main Menu */}
+          <ListItem disablePadding>
+            <ListItemButton onClick={() => navigate('/roaster/duty-roaster')}>
+              <ListItemIcon>
+                <DashboardIcon />
+              </ListItemIcon>
+              <ListItemText primary="Roaster Management" />
+            </ListItemButton>
+          </ListItem>
+          <Collapse in={true} timeout="auto" unmountOnExit>
+            <List component="div" disablePadding>
+              <ListItemButton sx={{ pl: 4 }} onClick={() => navigate('/roaster/duty-roaster')}>
+                <ListItemText primary="Duty Roaster" />
+              </ListItemButton>
+              <ListItemButton sx={{ pl: 4 }} onClick={() => navigate('/roaster/create')}>
+                <ListItemText primary="Create Roaster" />
+              </ListItemButton>
+            </List>
+          </Collapse>
         </List>
       </Drawer>
       

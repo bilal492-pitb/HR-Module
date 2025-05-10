@@ -30,7 +30,9 @@ const generatePassword = () => {
 const getRolesFromLocalStorage = () => {
   try {
     const roles = localStorage.getItem('roles');
-    return roles ? JSON.parse(roles) : [];
+    const parsedRoles = roles ? JSON.parse(roles) : [];
+    console.log('Roles loaded in EmployeeCreate:', parsedRoles);
+    return parsedRoles;
   } catch (error) {
     console.error('Error getting roles from localStorage:', error);
     return [];
@@ -59,7 +61,7 @@ const saveRoleLogsToLocalStorage = (roleLogs) => {
 
 const EmployeeCreate = () => {
   const navigate = useNavigate();
-  const { hasRole, currentUser } = useContext(AuthContext);
+  const { hasRole } = useContext(AuthContext);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [storageWarningOpen, setStorageWarningOpen] = useState(false);
@@ -93,37 +95,39 @@ const EmployeeCreate = () => {
   // Function to log role assignment
   const logRoleAssignment = async (employeeId, roleId) => {
     try {
-      // Get role name from role id
       const roles = getRolesFromLocalStorage();
-      const role = roles.find(r => r.id === roleId);
+      const role = roles.find(r => r.id.toString() === roleId.toString());
       
       if (!role) {
-        console.error('Role not found:', roleId);
+        console.error(`Role with ID ${roleId} not found`);
         return;
       }
-
-      const roleName = role.name;
+      
+      console.log(`Logging role assignment: Employee ${employeeId} assigned to role ${role.name} (${roleId})`);
+      
+      const roleLogs = getRoleLogsFromLocalStorage();
       
       const newLog = {
         id: Date.now(),
-        employeeId: employeeId,
-        oldRole: '', // No previous role for new employee
-        newRole: roleName,
+        employeeId: employeeId.toString(),
+        oldRoleId: '',
+        oldRoleName: 'No role',
+        newRoleId: roleId.toString(),
+        newRoleName: role.name,
         changeDate: new Date().toISOString().substr(0, 10),
-        changedBy: currentUser?.username || 'admin',
-        reason: 'Initial role assignment on employee creation',
+        changedBy: 'admin',
+        reason: 'Initial role assignment',
         timestamp: new Date().toISOString()
       };
-
-      // Try to save via API
+      
+      roleLogs.push(newLog);
+      saveRoleLogsToLocalStorage(roleLogs);
+      
+      // Try API call first
       try {
         await axios.post(`${API_BASE_URL}/api/role-logs`, newLog);
       } catch (apiError) {
-        console.warn('API call failed when logging role, using localStorage:', apiError);
-        
-        // Fallback to localStorage
-        const roleLogs = getRoleLogsFromLocalStorage();
-        saveRoleLogsToLocalStorage([...roleLogs, newLog]);
+        console.warn('API call failed, using localStorage only:', apiError);
       }
     } catch (error) {
       console.error('Error logging role assignment:', error);
@@ -208,10 +212,21 @@ const EmployeeCreate = () => {
       try {
         const currentEmployees = getStoredEmployees() || [];
         
+        // Get role name if role ID is provided
+        let roleName = '';
+        if (formData.role) {
+          const roles = getRolesFromLocalStorage();
+          const role = roles.find(r => r.id === formData.role);
+          if (role) {
+            roleName = role.name;
+          }
+        }
+        
         // Create a new employee object
         const newEmployee = {
           id: Date.now(),
           ...formData,
+          roleName: roleName, // Store role name along with role ID
           qualifications: [],
           dependents: [],
           trainings: [],

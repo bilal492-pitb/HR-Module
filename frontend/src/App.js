@@ -22,6 +22,7 @@ import EmployeeList from './pages/employees/EmployeeList';
 import EmployeeDetails from './pages/employees/EmployeeDetails';
 import EmployeeCreate from './pages/employees/EmployeeCreate';
 import EmployeeEdit from './pages/employees/EmployeeEdit';
+import ICTChartReport from './pages/employees/ICTChartReport';
 
 // Role Management
 import { Posts, Roles, Permissions, RoleLog } from './pages/roleManagement';
@@ -42,6 +43,10 @@ const SalaryHistoryList = () => <div>Salary History Page</div>;
 const BankDetailsList = () => <div>Bank Details Page</div>;
 const LeaveList = () => <div>Leave Page</div>;
 const AssetList = () => <div>Assets Page</div>;
+
+// Add imports at the top
+import DutyRoaster from './pages/roasterManagement/DutyRoaster';
+import CreateRoaster from './pages/roasterManagement/CreateRoaster';
 
 // Create theme with new color scheme based on the PAFDA design
 const theme = createTheme({
@@ -289,6 +294,7 @@ function App() {
                     <EmployeeEdit />
                   </ProtectedRoute>
                 } />
+                <Route path=":id/ict-chart" element={<ICTChartReport />} />
               </Route>
               
               {/* Module routes */}
@@ -320,6 +326,10 @@ function App() {
                   <RoleLog />
                 </ProtectedRoute>
               } />
+              <Route path="roaster">
+                <Route path="duty-roaster" element={<DutyRoaster />} />
+                <Route path="create" element={<CreateRoaster />} />
+              </Route>
               
               {/* Redirect unknown routes to dashboard */}
               <Route path="*" element={<Navigate to="/" replace />} />

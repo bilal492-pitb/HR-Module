@@ -59,7 +59,8 @@ import {
   FileDownload as FileDownloadIcon,
   AttachMoney as AttachMoneyIcon,
   AccountBalance as AccountBalanceIcon,
-  Laptop as LaptopIcon
+  Laptop as LaptopIcon,
+  EventNote as EventNoteIcon
 } from '@mui/icons-material';
 import { format } from 'date-fns';
 import { AuthContext } from '../../context/AuthContext';
@@ -230,6 +231,18 @@ const EmployeeDetails = () => {
   const [assetFormErrors, setAssetFormErrors] = useState({});
   const [editingAssetId, setEditingAssetId] = useState(null);
 
+  // Add new state for leaves
+  const [leaveDialogOpen, setLeaveDialogOpen] = useState(false);
+  const [leaveForm, setLeaveForm] = useState({
+    leaveType: '',
+    leaveCount: '',
+    leaveAvail: '',
+    leaveLimit: '',
+    updateType: 'manual'
+  });
+  const [leaveFormErrors, setLeaveFormErrors] = useState({});
+  const [editingLeaveId, setEditingLeaveId] = useState(null);
+
   useEffect(() => {
     fetchEmployeeDetails();
   }, [id]);
@@ -242,6 +255,17 @@ const EmployeeDetails = () => {
       // Try using the API first
       try {
         const response = await getEmployeeById(id);
+        console.log('Employee details from API:', response.data);
+        
+        // Log role information for debugging
+        if (response.data) {
+          console.log('Employee role from API:', {
+            role: response.data.role,
+            roleName: response.data.roleName,
+            type: typeof response.data.role
+          });
+        }
+        
         setEmployee(response.data);
         
         // Fetch medical records separately
@@ -263,6 +287,14 @@ const EmployeeDetails = () => {
       const foundEmployee = storedEmployees.find(emp => emp.id.toString() === id.toString());
       
       if (foundEmployee) {
+        // Log role information for debugging
+        console.log('Employee details from localStorage:', foundEmployee);
+        console.log('Employee role from localStorage:', {
+          role: foundEmployee.role,
+          roleName: foundEmployee.roleName,
+          type: typeof foundEmployee.role
+        });
+        
         setEmployee(foundEmployee);
       } else {
         setError('Employee not found');
@@ -371,6 +403,11 @@ const EmployeeDetails = () => {
       
       if (!updatedEmployee.trainings) {
         updatedEmployee.trainings = [];
+        needsUpdate = true;
+      }
+      
+      if (!updatedEmployee.leaves) {
+        updatedEmployee.leaves = [];
         needsUpdate = true;
       }
       
@@ -2225,6 +2262,187 @@ const EmployeeDetails = () => {
     }
   };
 
+  // Handle leave form input changes
+  const handleLeaveChange = (e) => {
+    const { name, value } = e.target;
+    setLeaveForm({
+      ...leaveForm,
+      [name]: value
+    });
+    
+    // Clear error when user types
+    if (leaveFormErrors[name]) {
+      setLeaveFormErrors({
+        ...leaveFormErrors,
+        [name]: ''
+      });
+    }
+  };
+
+  // Open leave dialog for new leave
+  const handleOpenLeaveDialog = () => {
+    setLeaveForm({
+      leaveType: '',
+      leaveCount: '',
+      leaveAvail: '',
+      leaveLimit: '',
+      updateType: 'manual'
+    });
+    setLeaveFormErrors({});
+    setEditingLeaveId(null);
+    setLeaveDialogOpen(true);
+  };
+
+  // Open leave dialog for editing
+  const handleEditLeave = (leave) => {
+    setLeaveForm({
+      leaveType: leave.leaveType || '',
+      leaveCount: leave.leaveCount || '',
+      leaveAvail: leave.leaveAvail || '',
+      leaveLimit: leave.leaveLimit || '',
+      updateType: leave.updateType || 'manual'
+    });
+    setLeaveFormErrors({});
+    setEditingLeaveId(leave.id);
+    setLeaveDialogOpen(true);
+  };
+
+  // Validate leave form
+  const validateLeaveForm = () => {
+    const errors = {};
+    if (!leaveForm.leaveType) {
+      errors.leaveType = 'Leave type is required';
+    }
+    if (!leaveForm.leaveCount) {
+      errors.leaveCount = 'Leave count is required';
+    }
+    if (!leaveForm.leaveAvail) {
+      errors.leaveAvail = 'Available leave is required';
+    }
+    if (!leaveForm.leaveLimit) {
+      errors.leaveLimit = 'Leave limit is required';
+    }
+    
+    setLeaveFormErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
+
+  // Save leave
+  const handleSaveLeave = () => {
+    if (validateLeaveForm()) {
+      try {
+        // For demo: Update in localStorage
+        const storedEmployees = getStoredEmployees();
+        const employeeIndex = storedEmployees.findIndex(emp => emp.id.toString() === id.toString());
+        
+        if (employeeIndex !== -1) {
+          // Ensure the employee has a leaves array
+          if (!storedEmployees[employeeIndex].leaves) {
+            storedEmployees[employeeIndex].leaves = [];
+          }
+          
+          // Prepare leave object
+          const newLeave = {
+            id: editingLeaveId || Date.now(),
+            leaveType: leaveForm.leaveType,
+            leaveCount: leaveForm.leaveCount,
+            leaveAvail: leaveForm.leaveAvail,
+            leaveLimit: leaveForm.leaveLimit,
+            updateType: leaveForm.updateType,
+            createdAt: new Date().toISOString()
+          };
+          
+          let updatedLeaves;
+          
+          if (editingLeaveId) {
+            // Update existing leave
+            updatedLeaves = storedEmployees[employeeIndex].leaves.map(
+              leave => leave.id.toString() === editingLeaveId.toString() ? newLeave : leave
+            );
+          } else {
+            // Add new leave
+            updatedLeaves = [...storedEmployees[employeeIndex].leaves, newLeave];
+          }
+          
+          // Update employee
+          storedEmployees[employeeIndex].leaves = updatedLeaves;
+          storedEmployees[employeeIndex].updatedAt = new Date().toISOString();
+          
+          // Save to localStorage
+          storeCompressedEmployees(storedEmployees);
+          
+          // Update local state
+          setEmployee({
+            ...employee,
+            leaves: updatedLeaves,
+            updatedAt: new Date().toISOString()
+          });
+          
+          // Show success message
+          setSnackbar({
+            open: true,
+            message: `Leave ${editingLeaveId ? 'updated' : 'added'} successfully!`,
+            severity: 'success'
+          });
+          
+          // Close dialog
+          setLeaveDialogOpen(false);
+        }
+      } catch (err) {
+        console.error('Error saving leave:', err);
+        setSnackbar({
+          open: true,
+          message: 'Failed to save leave: ' + (err.message || 'Unknown error'),
+          severity: 'error'
+        });
+      }
+    }
+  };
+
+  // Delete leave
+  const handleDeleteLeave = (leaveId) => {
+    try {
+      // For demo: Update in localStorage
+      const storedEmployees = getStoredEmployees();
+      const employeeIndex = storedEmployees.findIndex(emp => emp.id.toString() === id.toString());
+      
+      if (employeeIndex !== -1 && storedEmployees[employeeIndex].leaves) {
+        // Filter out the leave to delete
+        const updatedLeaves = storedEmployees[employeeIndex].leaves.filter(
+          leave => leave.id.toString() !== leaveId.toString()
+        );
+        
+        // Update employee
+        storedEmployees[employeeIndex].leaves = updatedLeaves;
+        storedEmployees[employeeIndex].updatedAt = new Date().toISOString();
+        
+        // Save to localStorage
+        storeCompressedEmployees(storedEmployees);
+        
+        // Update local state
+        setEmployee({
+          ...employee,
+          leaves: updatedLeaves,
+          updatedAt: new Date().toISOString()
+        });
+        
+        // Show success message
+        setSnackbar({
+          open: true,
+          message: 'Leave deleted successfully!',
+          severity: 'success'
+        });
+      }
+    } catch (err) {
+      console.error('Error deleting leave:', err);
+      setSnackbar({
+        open: true,
+        message: 'Failed to delete leave: ' + (err.message || 'Unknown error'),
+        severity: 'error'
+      });
+    }
+  };
+
   if (loading) {
     return (
       <Box display="flex" justifyContent="center" alignItems="center" minHeight="500px">
@@ -3132,7 +3350,7 @@ const EmployeeDetails = () => {
             >
               Add Bank Detail
             </Button>
-          </Box>
+            </Box>
           
           {employee?.bankDetails && employee.bankDetails.length > 0 ? (
             <TableContainer component={Paper}>
@@ -3200,15 +3418,85 @@ const EmployeeDetails = () => {
               </Button>
             </Paper>
           )}
-        </TabPanel>
+          </TabPanel>
         
         {/* Leaves Tab */}
         <TabPanel value={tabValue} index={7}>
-          <Box display="flex" justifyContent="center" p={3}>
-            <Typography variant="body1" color="textSecondary">
-              Leave records will be displayed here
-            </Typography>
+          <Box mb={3} display="flex" justifyContent="space-between" alignItems="center">
+            <Typography variant="h6">Leave Management</Typography>
+            <Button
+              variant="contained"
+              color="primary"
+              startIcon={<AddIcon />}
+              onClick={handleOpenLeaveDialog}
+            >
+              Add Leave
+            </Button>
           </Box>
+          
+          {employee?.leaves && employee.leaves.length > 0 ? (
+            <TableContainer component={Paper}>
+              <Table>
+                <TableHead>
+                  <TableRow>
+                    <TableCell>Leave Type</TableCell>
+                    <TableCell>Leave Count</TableCell>
+                    <TableCell>Available</TableCell>
+                    <TableCell>Limit</TableCell>
+                    <TableCell>Update Type</TableCell>
+                    <TableCell>Actions</TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {employee.leaves.map((leave) => (
+                    <TableRow key={leave.id}>
+                      <TableCell>{leave.leaveType}</TableCell>
+                      <TableCell>{leave.leaveCount}</TableCell>
+                      <TableCell>{leave.leaveAvail}</TableCell>
+                      <TableCell>{leave.leaveLimit}</TableCell>
+                      <TableCell>{leave.updateType === 'automatic' ? 'Automatic' : 'Manual'}</TableCell>
+                      <TableCell>
+                        <Tooltip title="Edit Leave">
+                          <IconButton
+                            size="small"
+                            color="primary"
+                            onClick={() => handleEditLeave(leave)}
+                            sx={{ mr: 1 }}
+                          >
+                            <EditIcon fontSize="small" />
+                          </IconButton>
+                        </Tooltip>
+                        <Tooltip title="Delete Leave">
+                          <IconButton
+                            size="small"
+                            color="error"
+                            onClick={() => handleDeleteLeave(leave.id)}
+                          >
+                            <DeleteIcon fontSize="small" />
+                          </IconButton>
+                        </Tooltip>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </TableContainer>
+          ) : (
+            <Paper elevation={0} sx={{ p: 3, bgcolor: 'background.default', textAlign: 'center' }}>
+              <EventNoteIcon color="action" sx={{ fontSize: 60, opacity: 0.3, mb: 2 }} />
+              <Typography variant="body1" color="textSecondary" paragraph>
+                No leave records have been added yet.
+              </Typography>
+              <Button
+                variant="contained"
+                startIcon={<AddIcon />}
+                onClick={handleOpenLeaveDialog}
+                color="primary"
+              >
+                Add First Leave Record
+              </Button>
+            </Paper>
+          )}
         </TabPanel>
         
         {/* Assets Tab */}
@@ -4375,6 +4663,109 @@ const EmployeeDetails = () => {
         <DialogActions>
           <Button onClick={() => setAssetDialogOpen(false)}>Cancel</Button>
           <Button onClick={handleSaveAsset} variant="contained" color="success">
+            Save
+          </Button>
+        </DialogActions>
+      </Dialog>
+      
+      {/* Leave Dialog */}
+      <Dialog
+        open={leaveDialogOpen}
+        onClose={() => setLeaveDialogOpen(false)}
+        maxWidth="md"
+        fullWidth
+      >
+        <DialogTitle>{editingLeaveId ? 'Edit Leave' : 'Add Leave'}</DialogTitle>
+        <DialogContent dividers>
+          <Grid container spacing={2} sx={{ mt: 1 }}>
+            <Grid item xs={12} sm={6}>
+              <TextField
+                name="leaveType"
+                label="Leave Type"
+                select
+                fullWidth
+                required
+                value={leaveForm.leaveType}
+                onChange={handleLeaveChange}
+                error={!!leaveFormErrors.leaveType}
+                helperText={leaveFormErrors.leaveType}
+              >
+                <MenuItem value="Annual">Annual Leave</MenuItem>
+                <MenuItem value="Sick">Sick Leave</MenuItem>
+                <MenuItem value="Casual">Casual Leave</MenuItem>
+                <MenuItem value="Maternity">Maternity Leave</MenuItem>
+                <MenuItem value="Paternity">Paternity Leave</MenuItem>
+                <MenuItem value="Extraordinary">Extraordinary Leave</MenuItem>
+                <MenuItem value="Umrah">Umrah Leave</MenuItem>
+                <MenuItem value="Hajj">Hajj Leave</MenuItem>
+                <MenuItem value="Expakistan">Expakistan Leave</MenuItem>
+                <MenuItem value="Shortleave">Short Leave</MenuItem>
+                <MenuItem value="Studyleave">Study Leave</MenuItem>
+                <MenuItem value="Leaveduringprobation">Leave During Probation</MenuItem>
+              </TextField>
+            </Grid>
+            
+            <Grid item xs={12} sm={6}>
+              <TextField
+                name="leaveCount"
+                label="Leave Count"
+                type="number"
+                fullWidth
+                required
+                value={leaveForm.leaveCount}
+                onChange={handleLeaveChange}
+                error={!!leaveFormErrors.leaveCount}
+                helperText={leaveFormErrors.leaveCount}
+              />
+            </Grid>
+            
+            <Grid item xs={12} sm={6}>
+              <TextField
+                name="leaveAvail"
+                label="Leave Available"
+                type="number"
+                fullWidth
+                required
+                value={leaveForm.leaveAvail}
+                onChange={handleLeaveChange}
+                error={!!leaveFormErrors.leaveAvail}
+                helperText={leaveFormErrors.leaveAvail}
+              />
+            </Grid>
+            
+            <Grid item xs={12} sm={6}>
+              <TextField
+                name="leaveLimit"
+                label="Leave Limit to Apply"
+                type="number"
+                fullWidth
+                required
+                value={leaveForm.leaveLimit}
+                onChange={handleLeaveChange}
+                error={!!leaveFormErrors.leaveLimit}
+                helperText={leaveFormErrors.leaveLimit}
+              />
+            </Grid>
+            
+            <Grid item xs={12} sm={6}>
+              <TextField
+                name="updateType"
+                label="Leave Update Type"
+                select
+                fullWidth
+                required
+                value={leaveForm.updateType}
+                onChange={handleLeaveChange}
+              >
+                <MenuItem value="manual">Manual</MenuItem>
+                <MenuItem value="automatic">Automatic</MenuItem>
+              </TextField>
+            </Grid>
+          </Grid>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setLeaveDialogOpen(false)}>Cancel</Button>
+          <Button onClick={handleSaveLeave} variant="contained" color="success">
             Save
           </Button>
         </DialogActions>

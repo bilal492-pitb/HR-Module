@@ -23,7 +23,9 @@ import PropTypes from 'prop-types';
 const getRolesFromLocalStorage = () => {
   try {
     const roles = localStorage.getItem('roles');
-    return roles ? JSON.parse(roles) : [];
+    const parsedRoles = roles ? JSON.parse(roles) : [];
+    console.log('Roles loaded in EmployeeForm:', parsedRoles);
+    return parsedRoles;
   } catch (error) {
     console.error('Error getting roles from localStorage:', error);
     return [];
@@ -86,8 +88,27 @@ const EmployeeForm = ({
   
   // Fetch roles from local storage
   useEffect(() => {
-    const fetchedRoles = getRolesFromLocalStorage();
-    setRoles(fetchedRoles);
+    const fetchRoles = () => {
+      const fetchedRoles = getRolesFromLocalStorage();
+      console.log('Fetched roles in EmployeeForm:', fetchedRoles);
+      setRoles(fetchedRoles);
+    };
+    
+    fetchRoles();
+    
+    // Add event listener to refresh roles when localStorage changes
+    const handleStorageChange = (e) => {
+      if (e.key === 'roles') {
+        console.log('Roles changed in localStorage, refreshing...');
+        fetchRoles();
+      }
+    };
+    
+    window.addEventListener('storage', handleStorageChange);
+    
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+    };
   }, []);
   
   // Update form when initialValues changes
