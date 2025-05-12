@@ -6,12 +6,12 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 
 // Define logo styles for consistent size
-const logoStyle = {
-  height: '40px',
-  width: 'auto',
-  marginRight: '15px',
-  objectFit: 'contain'
-};
+// const logoStyle = {
+//   height: '40px',
+//   width: 'auto',
+//   marginRight: '15px',
+//   objectFit: 'contain'
+// };
 
 const Header = ({ toggleDrawer }) => {
   const [anchorEl, setAnchorEl] = useState(null);
@@ -52,7 +52,7 @@ const Header = ({ toggleDrawer }) => {
           <MenuIcon />
         </IconButton>
         
-        {/* Logo and Text */}
+
         <Box sx={{ display: 'flex', alignItems: 'center' }}>
           <img 
             src={`${process.env.PUBLIC_URL}/PAFDA.JPG`}

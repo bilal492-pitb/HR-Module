@@ -164,35 +164,37 @@ const CreateRoaster = () => {
 
   return (
     <Box p={2}>
-      <Typography variant="h4" color="primary" gutterBottom>{pageTitle}</Typography>
-      <Box display="flex" justifyContent="flex-start" alignItems="center" gap={2} mb={2}>
-        <FormControl size="small">
-          <InputLabel>Month</InputLabel>
-          <Select value={selectedMonth} label="Month" onChange={e => setSelectedMonth(Number(e.target.value))} disabled={isEditMode}>
-            {[...Array(12).keys()].map(m => (
-              <MenuItem key={m} value={m}>{new Date(0, m).toLocaleString('default', { month: 'long' })}</MenuItem>
-            ))}
-          </Select>
-        </FormControl>
-        <FormControl size="small">
-          <InputLabel>Year</InputLabel>
-          <Select value={selectedYear} label="Year" onChange={e => setSelectedYear(Number(e.target.value))} disabled={isEditMode}>
-            {[selectedYear - 1, selectedYear, selectedYear + 1].map(y => (
-              <MenuItem key={y} value={y}>{y}</MenuItem>
-            ))}
-          </Select>
-        </FormControl>
-        {!isEditMode && (
-          <TextField 
-            size="small"
-            variant="outlined"
-            placeholder="Search Employees..."
-            value={searchTerm}
-            onChange={handleSearchChange}
-            InputProps={{ startAdornment: (<InputAdornment position="start"><SearchIcon /></InputAdornment>), }}
-            sx={{ width: '300px' }}
-          />
-        )}
+      <Box sx={{ position: 'sticky', top: 0, zIndex: theme.zIndex.appBar + 3, bgcolor: theme.palette.background.default, p: 2 }}>
+        <Typography variant="h4" color="primary" gutterBottom>{pageTitle}</Typography>
+        <Box display="flex" justifyContent="flex-start" alignItems="center" gap={2} mb={2}>
+          <FormControl size="small">
+            <InputLabel>Month</InputLabel>
+            <Select value={selectedMonth} label="Month" onChange={(e) => setSelectedMonth(Number(e.target.value))} disabled={isEditMode}>
+              {[...Array(12).keys()].map((m) => (
+                <MenuItem key={m} value={m}>{new Date(0, m).toLocaleString('default', { month: 'long' })}</MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+          <FormControl size="small">
+            <InputLabel>Year</InputLabel>
+            <Select value={selectedYear} label="Year" onChange={(e) => setSelectedYear(Number(e.target.value))} disabled={isEditMode}>
+              {[selectedYear - 1, selectedYear, selectedYear + 1].map((y) => (
+                <MenuItem key={y} value={y}>{y}</MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+          {!isEditMode && (
+            <TextField
+              size="small"
+              variant="outlined"
+              placeholder="Search Employees..."
+              value={searchTerm}
+              onChange={handleSearchChange}
+              InputProps={{ startAdornment: (<InputAdornment position="start"><SearchIcon /></InputAdornment>), }}
+              sx={{ width: '300px' }}
+            />
+          )}
+        </Box>
       </Box>
       <Paper sx={{ mb: 2, overflowX: 'auto', width: '100%' }}>
         <Table size="small" stickyHeader sx={{ minWidth: 1200 }}>
@@ -253,4 +255,4 @@ const CreateRoaster = () => {
   );
 };
 
-export default CreateRoaster; 
+export default CreateRoaster;

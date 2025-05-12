@@ -20,6 +20,7 @@ import {
 } from '@mui/material';
 import { DataGrid } from '@mui/x-data-grid';
 import SearchIcon from '@mui/icons-material/Search';
+import CircularProgress from '@mui/material/CircularProgress';
 import { getStoredEmployees } from '../../utils/storageUtils';
 import { API_BASE_URL } from '../../config/api';
 import axios from 'axios';
@@ -78,10 +79,17 @@ const getRolesFromLocalStorage = () => {
   }
 };
 
+// Check if user is authenticated
+const isAuthenticated = () => {
+  const token = localStorage.getItem('token');
+  return !!token; // returns true if token exists, false otherwise
+};
+
 const RoleLog = () => {
   const [roleLogs, setRoleLogs] = useState([]);
   const [roles, setRoles] = useState([]);
   const [employees, setEmployees] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [dialogOpen, setDialogOpen] = useState(false);
   const [formData, setFormData] = useState({
@@ -90,18 +98,24 @@ const RoleLog = () => {
     oldRoleName: '',
     newRoleId: '',
     newRoleName: '',
-    changeDate: new Date().toISOString().substr(0, 10), // Today's date
-    changedBy: 'admin', // Default value
+    changeDate: new Date().toISOString().substr(0, 10),
+    changedBy: localStorage.getItem('username') || 'admin',
     reason: ''
   });
   const [snackbar, setSnackbar] = useState({
     open: false,
     message: '',
-    severity: 'success'
+    severity: 'info'
   });
 
   // Load data on component mount
   useEffect(() => {
+    if (!isAuthenticated()) {
+      window.location.href = '/login';
+      return;
+    }
+
+    let isMounted = true;
     const loadData = async () => {
       try {
         console.log("Loading initial data for RoleLog component");
@@ -109,73 +123,155 @@ const RoleLog = () => {
         const fetchedRoles = await fetchRoles();
         console.log("Initial roles loaded:", fetchedRoles);
         
-        // Then load employees and role logs
-        fetchEmployees();
-        fetchRoleLogs();
+        // Then load employees and role logs in parallel
+        await Promise.all([
+          fetchEmployees(),
+          fetchRoleLogs()
+        ]);
       } catch (error) {
         console.error("Error during initial data loading:", error);
-        // Still try to load employees and role logs even if roles fail
-        fetchEmployees();
-        fetchRoleLogs();
+        if (error.response?.status === 401) {
+          localStorage.removeItem('token');
+          window.location.href = '/login';
+        } else {
+          setSnackbar({
+            open: true,
+            message: 'Error loading data. Some features may be limited.',
+            severity: 'warning'
+          });
+        }
+      } finally {
+        if (isMounted) {
+          setLoading(false);
+        }
       }
     };
     
     loadData();
+    
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   const fetchRoleLogs = async () => {
+    if (!isAuthenticated()) {
+      const localRoleLogs = getRoleLogsFromLocalStorage();
+      setRoleLogs(migrateRoleLogs(localRoleLogs));
+      return localRoleLogs;
+    }
+
     try {
-      // Try API first
-      const response = await axios.get(`${API_BASE_URL}/api/role-logs`);
-      const data = response.data;
-      setRoleLogs(migrateRoleLogs(data));
-      saveRoleLogsToLocalStorage(migrateRoleLogs(data));
+      const token = localStorage.getItem('token');
+      const response = await axios.get(`${API_BASE_URL}/api/role-logs`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        validateStatus: (status) => status < 500
+      });
+
+      if (response.status === 200) {
+        const logs = Array.isArray(response.data) ? response.data : [];
+        setRoleLogs(migrateRoleLogs(logs));
+        saveRoleLogsToLocalStorage(migrateRoleLogs(logs));
+        return logs;
+      } else if (response.status === 401) {
+        throw new Error('Unauthorized');
+      } else {
+        throw new Error('Failed to fetch role logs');
+      }
     } catch (error) {
-      console.error('Error fetching role logs from API:', error);
-      
+      console.error('Error fetching role logs:', error);
+      if (error.response?.status === 401) {
+        localStorage.removeItem('token');
+        window.location.href = '/login';
+      }
       // Fallback to localStorage
       const localRoleLogs = getRoleLogsFromLocalStorage();
       setRoleLogs(migrateRoleLogs(localRoleLogs));
+      return localRoleLogs;
     }
   };
 
   const fetchRoles = async () => {
-    try {
-      // Try API first
-      try {
-        const response = await axios.get(`${API_BASE_URL}/api/roles`);
-        console.log('Roles from API:', response.data);
-        setRoles(response.data);
-        return response.data;
-      } catch (apiError) {
-        console.error('Error fetching roles from API:', apiError);
-        // Fallback to localStorage - don't throw error here
-      }
-      
-      // Fallback to localStorage
+    if (!isAuthenticated()) {
       const localRoles = getRolesFromLocalStorage();
-      console.log('Roles from localStorage:', localRoles);
       setRoles(localRoles);
       return localRoles;
+    }
+
+    try {
+      const token = localStorage.getItem('token');
+      const response = await axios.get(`${API_BASE_URL}/api/roles`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        validateStatus: (status) => status < 500
+      });
+      
+      if (response.status === 200) {
+        const rolesData = Array.isArray(response.data) ? response.data : [];
+        setRoles(rolesData);
+        return rolesData;
+      } else if (response.status === 401) {
+        throw new Error('Unauthorized');
+      } else {
+        throw new Error('Failed to fetch roles');
+      }
     } catch (error) {
-      console.error('Error in fetchRoles:', error);
-      // Return empty array instead of throwing error to prevent dialog issues
-      return [];
+      console.error('Error fetching roles:', error);
+      if (error.response?.status === 401) {
+        localStorage.removeItem('token');
+        window.location.href = '/login';
+      }
+      // Fallback to local storage
+      const localRoles = getRolesFromLocalStorage();
+      setRoles(localRoles);
+      return localRoles;
     }
   };
 
-  const fetchEmployees = () => {
-    const storedEmployees = getStoredEmployees();
-    console.log('Fetched employees:', storedEmployees);
-    
-    // Log employee roles for debugging
-    if (storedEmployees && storedEmployees.length > 0) {
-      storedEmployees.forEach(emp => {
-        console.log(`Employee ${emp.firstName} ${emp.lastName} (ID: ${emp.id}) - Role:`, emp.role, 'RoleName:', emp.roleName);
-      });
+  const fetchEmployees = async () => {
+    // First try to get from local storage
+    const localEmployees = getStoredEmployees();
+    if (!isAuthenticated()) {
+      setEmployees(localEmployees);
+      return localEmployees;
     }
-    
-    setEmployees(storedEmployees || []);
+
+    try {
+      const token = localStorage.getItem('token');
+      const response = await axios.get(`${API_BASE_URL}/api/employees`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        validateStatus: (status) => status < 500
+      });
+
+      if (response.status === 200) {
+        const employeesData = Array.isArray(response.data?.data) ? response.data.data : [];
+        setEmployees(employeesData);
+        return employeesData;
+      } else if (response.status === 401) {
+        throw new Error('Unauthorized');
+      } else {
+        throw new Error('Failed to fetch employees');
+      }
+    } catch (error) {
+      console.error('Error fetching employees:', error);
+      if (error.response?.status === 401) {
+        localStorage.removeItem('token');
+        window.location.href = '/login';
+      } else {
+        // Use local data as fallback
+        setEmployees(localEmployees);
+        return localEmployees;
+      }
+      return [];
+    }
   };
 
   // Helper function to get employee's current role
@@ -254,30 +350,43 @@ const RoleLog = () => {
     );
   });
 
-  const handleOpenDialog = () => {
-    console.log("Log Role Change button clicked, opening dialog directly");
-    
-    // Reset form data
-    setFormData({
-      employeeId: '',
-      oldRoleId: '',
-      oldRoleName: '',
-      newRoleId: '',
-      newRoleName: '',
-      changeDate: new Date().toISOString().substr(0, 10),
-      changedBy: 'admin',
-      reason: ''
-    });
-    
-    // Open dialog immediately
-    setDialogOpen(true);
-    
-    // Fetch roles in the background
-    fetchRoles().then(fetchedRoles => {
-      console.log("Roles fetched successfully:", fetchedRoles);
-    }).catch(error => {
-      console.error("Error fetching roles:", error);
-    });
+  const handleOpenDialog = async () => {
+    if (!isAuthenticated()) {
+      window.location.href = '/login';
+      return;
+    }
+
+    try {
+      setLoading(true);
+      // Refresh data when opening dialog
+      await Promise.all([
+        fetchRoles(),
+        fetchEmployees()
+      ]);
+      
+      setFormData(prev => ({
+        ...prev,
+        employeeId: '',
+        oldRoleId: '',
+        oldRoleName: '',
+        newRoleId: '',
+        newRoleName: '',
+        changeDate: new Date().toISOString().substr(0, 10),
+        changedBy: localStorage.getItem('username') || 'admin',
+        reason: ''
+      }));
+      
+      setDialogOpen(true);
+    } catch (error) {
+      console.error("Error loading dialog data:", error);
+      setSnackbar({
+        open: true,
+        message: error.response?.data?.message || 'Failed to load required data',
+        severity: 'error'
+      });
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleCloseDialog = () => {
@@ -334,6 +443,11 @@ const RoleLog = () => {
   };
 
   const handleSubmit = async () => {
+    if (!isAuthenticated()) {
+      window.location.href = '/login';
+      return;
+    }
+
     try {
       // Validate form
       if (!formData.employeeId || !formData.newRoleId || !formData.reason) {
@@ -498,225 +612,194 @@ const RoleLog = () => {
       }
     },
     { field: 'changedBy', headerName: 'Changed By', width: 150 },
-    { field: 'reason', headerName: 'Reason', width: 250 },
+    { field: 'reason', headerName: 'Reason', width: 200 }
   ];
 
-  // Function to migrate old role logs to new format if needed
   const migrateRoleLogs = (logs) => {
+    if (!logs || logs.length === 0) {
+      console.log('No role logs to migrate');
+      return [];
+    }
+  
+    console.log('Migrating role logs:', logs);
+  
     return logs.map(log => {
-      // If the log already has the new format, return it as is
-      if (log.oldRoleId !== undefined && log.newRoleId !== undefined) {
-        return log;
-      }
-      
-      // Otherwise, migrate the old format to the new format
-      const oldRoleName = log.oldRole || '';
-      const newRoleName = log.newRole || '';
-      
-      // Try to find role IDs based on names
-      let oldRoleId = '';
-      let newRoleId = '';
-      
-      if (oldRoleName) {
-        const oldRole = roles.find(r => r.name === oldRoleName);
-        if (oldRole) oldRoleId = oldRole.id;
-      }
-      
-      if (newRoleName) {
-        const newRole = roles.find(r => r.name === newRoleName);
-        if (newRole) newRoleId = newRole.id;
-      }
-      
+      // Ensure employeeId is always a string
+      const employeeId = log.employeeId ? String(log.employeeId) : '';
+  
+      // Ensure other fields exist
       return {
         ...log,
-        oldRoleId,
-        oldRoleName,
-        newRoleId,
-        newRoleName
+        employeeId: employeeId,
+        oldRoleId: log.oldRoleId || '',
+        oldRoleName: log.oldRoleName || '',
+        newRoleId: log.newRoleId || '',
+        newRoleName: log.newRoleName || '',
+        changeDate: log.changeDate || '',
+        changedBy: log.changedBy || '',
+        reason: log.reason || ''
       };
     });
   };
 
+  // Show loading state
+  if (loading) {
+    return (
+      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '80vh' }}>
+        <CircularProgress />
+      </Box>
+    );
+  }
+
   return (
-    <Box>
-      <Typography variant="h4" gutterBottom color="#008000">Role Change Logs</Typography>
-      
-      <Grid container spacing={2} sx={{ mb: 3 }}>
-        <Grid item xs={12} md={6}>
-            <TextField
-              fullWidth
-            variant="outlined"
-            placeholder="Search by employee name, role or reason..."
-            value={searchTerm}
-            onChange={handleSearchChange}
-              InputProps={{
+    <Box sx={{ padding: 3 }}>
+      <Typography variant="h4" gutterBottom>
+        Role Change Logs
+      </Typography>
+      <Paper sx={{ padding: 2, marginBottom: 2 }}>
+        <Box display="flex" gap={2}>
+          <TextField
+            fullWidth
+            label="Search Employee or Role"
+            InputProps={{
               startAdornment: (
                 <InputAdornment position="start">
                   <SearchIcon />
                 </InputAdornment>
               ),
-              }}
-            />
-          </Grid>
-        <Grid item xs={12} md={6} sx={{ display: 'flex', justifyContent: 'flex-end' }}>
-          <Button
-            variant="contained"
-            color="success"
-            onClick={handleOpenDialog}
-            sx={{ 
-              bgcolor: '#008000',
-              '&:hover': {
-                bgcolor: '#006400'
-              }
             }}
+            value={searchTerm}
+            onChange={handleSearchChange}
+          />
+          <Button 
+            variant="contained" 
+            color="primary" 
+            onClick={handleOpenDialog}
+            disabled={!isAuthenticated()}
           >
             Log Role Change
           </Button>
-        </Grid>
-          </Grid>
-      
-      <Paper sx={{ height: 600, width: '100%', boxShadow: 3, borderRadius: 2 }}>
+        </Box>
+      </Paper>
+      <Paper sx={{ height: 600, width: '100%' }}>
         <DataGrid
           rows={filteredRoleLogs}
           columns={columns}
           pageSize={10}
-          rowsPerPageOptions={[10, 25, 50]}
-          disableSelectionOnClick
+          rowsPerPageOptions={[5, 10, 20]}
+          getRowId={(row) => row.id}
           sx={{
-            '& .MuiDataGrid-columnHeaders': { backgroundColor: '#E9F7FB', fontWeight: 'bold', color: '#005F2F' },
-            '& .MuiDataGrid-row:hover': { backgroundColor: 'rgba(0, 128, 0, 0.05)' },
-            fontSize: 15,
-            '& .MuiDataGrid-cell:focus': {
-              outline: 'none',
-            },
             '& .MuiDataGrid-footerContainer': {
-              backgroundColor: '#f9f9f9',
-              borderTop: '1px solid #e0e0e0',
-            }
+              justifyContent: 'center',
+            },
           }}
         />
       </Paper>
-      
-      {/* Role Change Dialog */}
-      <Dialog 
-        open={dialogOpen} 
-        onClose={handleCloseDialog} 
-        maxWidth="md" 
-        fullWidth
-        sx={{ 
-          zIndex: 1400,
-          '& .MuiDialog-paper': {
-            boxShadow: '0px 4px 20px rgba(0, 0, 0, 0.2)',
-            borderRadius: '8px'
-          }
-        }}
-      >
-        <DialogTitle sx={{ bgcolor: '#E9F7FB', color: '#005F2F', fontWeight: 'bold' }}>
-          Log Role Change
-        </DialogTitle>
-        <DialogContent sx={{ pt: 2 }}>
-          <Grid container spacing={2} sx={{ mt: 1 }}>
-            <Grid item xs={12} md={6}>
-            <FormControl fullWidth required>
-              <InputLabel>Employee</InputLabel>
-              <Select
-                name="employeeId"
+
+      <Dialog open={dialogOpen} onClose={handleCloseDialog} fullWidth maxWidth="sm">
+        <DialogTitle>Log Role Change</DialogTitle>
+        <DialogContent>
+          <Grid container spacing={2}>
+            <Grid item xs={12}>
+              <FormControl fullWidth required>
+                <InputLabel id="employee-label">Employee</InputLabel>
+                <Select
+                  labelId="employee-label"
+                  id="employeeId"
+                  name="employeeId"
                   value={formData.employeeId}
-                label="Employee"
+                  label="Employee"
                   onChange={handleFormChange}
+                  disabled={loading}
                 >
-                  {employees.map(employee => (
+                  {employees.map((employee) => (
                     <MenuItem key={employee.id} value={employee.id}>
                       {employee.firstName} {employee.lastName}
                     </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
+                  ))}
+                </Select>
+              </FormControl>
             </Grid>
-            
-            <Grid item xs={12} md={6}>
+            <Grid item xs={12}>
               <TextField
-                name="changeDate"
-                label="Change Date"
-                type="date"
                 fullWidth
-                value={formData.changeDate}
-                onChange={handleFormChange}
-                InputLabelProps={{ shrink: true }}
-              />
-            </Grid>
-            
-            <Grid item xs={12} md={6}>
-              <TextField
-                name="oldRoleName"
                 label="Previous Role"
-                fullWidth
                 value={formData.oldRoleName}
-                disabled
+                InputProps={{
+                  readOnly: true,
+                }}
               />
             </Grid>
-            
-            <Grid item xs={12} md={6}>
-            <FormControl fullWidth required>
-              <InputLabel>New Role</InputLabel>
-              <Select
+            <Grid item xs={12}>
+              <FormControl fullWidth required>
+                <InputLabel id="new-role-label">New Role</InputLabel>
+                <Select
+                  labelId="new-role-label"
+                  id="newRoleId"
                   name="newRoleId"
                   value={formData.newRoleId}
-                label="New Role"
+                  label="New Role"
                   onChange={handleFormChange}
+                  disabled={loading}
                 >
-                  {roles && roles.length > 0 ? (
-                    roles.map(role => (
-                      <MenuItem key={role.id} value={role.id}>
-                        {role.name}
-                      </MenuItem>
-                    ))
-                  ) : (
-                    <MenuItem disabled value="">
-                      No roles available
+                  {roles.map((role) => (
+                    <MenuItem key={role.id} value={role.id}>
+                      {role.name}
                     </MenuItem>
-                  )}
-              </Select>
-            </FormControl>
+                  ))}
+                </Select>
+              </FormControl>
             </Grid>
-            
             <Grid item xs={12}>
-            <TextField
-                name="reason"
-                label="Reason for Change"
+              <TextField
                 fullWidth
-                multiline
-                rows={3}
+                label="Change Date"
+                type="date"
+                name="changeDate"
+                value={formData.changeDate}
+                onChange={handleFormChange}
+                InputLabelProps={{
+                  shrink: true,
+                }}
+              />
+            </Grid>
+            <Grid item xs={12}>
+              <TextField
+                fullWidth
+                label="Changed By"
+                name="changedBy"
+                value={formData.changedBy}
+                InputProps={{
+                  readOnly: true,
+                }}
+              />
+            </Grid>
+            <Grid item xs={12}>
+              <TextField
+                fullWidth
+                label="Reason"
+                name="reason"
                 value={formData.reason}
                 onChange={handleFormChange}
-              required
+                required
               />
             </Grid>
           </Grid>
         </DialogContent>
-        <DialogActions sx={{ p: 2 }}>
-          <Button onClick={handleCloseDialog} variant="contained" color="info">
-            Cancel
-          </Button>
-          <Button onClick={handleSubmit} variant="contained" sx={{ bgcolor: '#008000' }}>
+        <DialogActions>
+          <Button onClick={handleCloseDialog}>Cancel</Button>
+          <Button variant="contained" color="primary" onClick={handleSubmit}>
             Save
           </Button>
         </DialogActions>
       </Dialog>
-      
-      {/* Snackbar for notifications */}
       <Snackbar
         open={snackbar.open}
         autoHideDuration={6000}
         onClose={() => setSnackbar({ ...snackbar, open: false })}
         anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
       >
-        <Alert
-          onClose={() => setSnackbar({ ...snackbar, open: false })}
-          severity={snackbar.severity}
-          variant="filled"
-          sx={{ width: '100%' }}
-        >
+        <Alert onClose={() => setSnackbar({ ...snackbar, open: false })} severity={snackbar.severity} sx={{ width: '100%' }}>
           {snackbar.message}
         </Alert>
       </Snackbar>
@@ -725,4 +808,3 @@ const RoleLog = () => {
 };
 
 export default RoleLog;
-

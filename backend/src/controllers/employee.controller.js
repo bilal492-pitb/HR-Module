@@ -4,16 +4,26 @@ const { v4: uuidv4 } = require('uuid');
 
 // Get all employees
 exports.getAllEmployees = async (req, res) => {
+  console.log('getAllEmployees called with query params:', req.query);
+  console.log('Headers:', req.headers);
+  
   try {
     // Get all employees with basic information
+    console.log('Executing database query...');
     const employees = await db.all(`
       SELECT e.*, u.username, u.email, u.isActive 
       FROM employees e
       LEFT JOIN users u ON e.userId = u.id
       ORDER BY e.lastName ASC
     `);
+
+    console.log(`Found ${employees.length} employees`);
+    if (employees.length > 0) {
+      console.log('First employee sample:', employees[0]);
+    }
     
     res.status(200).json({
+      success: true,
       message: 'Employees retrieved successfully',
       data: employees
     });

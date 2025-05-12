@@ -35,6 +35,13 @@ import ApiModeToggle from '../common/ApiModeToggle';
 
 const drawerWidth = 240;
 
+const logoStyle = {
+  height: '40px',
+  width: 'auto',
+  marginRight: '15px',
+  objectFit: 'contain'
+};
+
 const Main = styled('main', { shouldForwardProp: (prop) => prop !== 'open' })(
   ({ theme, open }) => ({
     flexGrow: 1,
@@ -84,6 +91,7 @@ const Layout = () => {
   const [anchorEl, setAnchorEl] = useState(null);
   const [employeesOpen, setEmployeesOpen] = useState(true);
   const [roleManagementOpen, setRoleManagementOpen] = useState(true);
+  const [rosterManagementOpen, setRosterManagementOpen] = useState(true);
   const { currentUser, logout, hasRole } = useContext(AuthContext);
   const navigate = useNavigate();
 
@@ -117,6 +125,10 @@ const Layout = () => {
     setRoleManagementOpen(!roleManagementOpen);
   };
 
+  const toggleRosterManagementDropdown = () => {
+    setRosterManagementOpen(!rosterManagementOpen);
+  };
+
   // Dashboard item
   const dashboardItem = {
     text: 'Dashboard',
@@ -144,7 +156,9 @@ const Layout = () => {
   return (
     <Box sx={{ display: 'flex' }}>
       <AppBarStyled position="fixed" open={open}>
-        <Toolbar>
+        <Toolbar sx={{ display: 'flex', justifyContent: 'space-between' }}>
+
+          <div style={{ display: 'flex', alignItems: 'center' }}>
           <IconButton
             color="inherit"
             aria-label="open drawer"
@@ -154,11 +168,21 @@ const Layout = () => {
           >
             <MenuIcon />
           </IconButton>
-          <Typography variant="h6" noWrap component="div" sx={{ flexGrow: 1 }}>
+
+          <Box sx={{ display: 'flex', alignItems: 'center' }}>
+            <img 
+              src={`${process.env.PUBLIC_URL}/PAFDA.JPG`}
+              alt="Organization Logo" 
+              style={logoStyle}
+            />
+                 <Typography variant="h6" noWrap component="div" sx={{ flexGrow: 1 }}>
             HR Management System
           </Typography>
+        </Box>
+          </div>
+        
           
-          {/* Add API Mode Toggle */}
+          <div style={{ display: 'flex', alignItems: 'center' }}>
           <Box sx={{ mr: 2 }}>
             <ApiModeToggle />
           </Box>
@@ -175,6 +199,7 @@ const Layout = () => {
               </Avatar>
             </IconButton>
           </Tooltip>
+          </div>
           <Menu
             anchorEl={anchorEl}
             open={Boolean(anchorEl)}
@@ -284,22 +309,23 @@ const Layout = () => {
             </List>
           </Collapse>
 
-          {/* Roaster Management Main Menu */}
+          {/* Roster Management Main Menu */}
           <ListItem disablePadding>
-            <ListItemButton onClick={() => navigate('/roaster/duty-roaster')}>
+            <ListItemButton onClick={toggleRosterManagementDropdown}>
               <ListItemIcon>
                 <DashboardIcon />
               </ListItemIcon>
-              <ListItemText primary="Roaster Management" />
+              <ListItemText primary="Roster Management" />
+              {rosterManagementOpen ? <ExpandLess /> : <ExpandMore />}
             </ListItemButton>
           </ListItem>
-          <Collapse in={true} timeout="auto" unmountOnExit>
+          <Collapse in={rosterManagementOpen} timeout="auto" unmountOnExit>
             <List component="div" disablePadding>
               <ListItemButton sx={{ pl: 4 }} onClick={() => navigate('/roaster/duty-roaster')}>
-                <ListItemText primary="Duty Roaster" />
+                <ListItemText primary="Duty Roster" />
               </ListItemButton>
               <ListItemButton sx={{ pl: 4 }} onClick={() => navigate('/roaster/create')}>
-                <ListItemText primary="Create Roaster" />
+                <ListItemText primary="Create Roster" />
               </ListItemButton>
             </List>
           </Collapse>

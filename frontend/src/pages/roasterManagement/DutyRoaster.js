@@ -117,58 +117,66 @@ const DutyRoaster = () => {
 
   return (
     <Box p={2}>
-      <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
-        <Typography variant="h4" color="primary" gutterBottom>Duty Roaster - {monthLabel} {selectedYear}</Typography>
-        <Button variant="contained" color="success" onClick={() => navigate('/roaster/create')}>
-          Create/Update Roaster
-        </Button>
+      <Box sx={{
+        position: 'sticky',
+        top: 0,
+        zIndex: 1,
+        bgcolor: 'white',
+        paddingBottom: 2,
+      }}>
+        <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
+          <Typography variant="h4" color="primary" gutterBottom>Duty Roaster - {monthLabel} {selectedYear}</Typography>
+          <Button variant="contained" color="success" onClick={() => navigate('/roaster/create')}>
+            Create/Update Roaster
+          </Button>
+        </Box>
+
+        <Box display="flex" justifyContent="flex-start" alignItems="center" gap={2} mb={2}>
+          <FormControl size="small">
+            <InputLabel>Month</InputLabel>
+            <Select value={selectedMonth} label="Month" onChange={e => setSelectedMonth(Number(e.target.value))}>
+              {[...Array(12).keys()].map(m => (
+                <MenuItem key={m} value={m}>{new Date(0, m).toLocaleString('default', { month: 'long' })}</MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+          <FormControl size="small">
+            <InputLabel>Year</InputLabel>
+            <Select value={selectedYear} label="Year" onChange={e => setSelectedYear(Number(e.target.value))}>
+              {[selectedYear - 2, selectedYear - 1, selectedYear, selectedYear + 1, selectedYear + 2].map(y => (
+                <MenuItem key={y} value={y}>{y}</MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+          <TextField
+            size="small"
+            variant="outlined"
+            placeholder="Search Employees..."
+            value={searchTerm}
+            onChange={handleSearchChange}
+            InputProps={{
+              startAdornment: (
+                <InputAdornment position="start">
+                  <SearchIcon />
+                </InputAdornment>
+              ),
+            }}
+            sx={{ width: '300px' }}
+          />
+        </Box>
       </Box>
 
-      <Box display="flex" justifyContent="flex-start" alignItems="center" gap={2} mb={2}>
-        <FormControl size="small">
-          <InputLabel>Month</InputLabel>
-          <Select value={selectedMonth} label="Month" onChange={e => setSelectedMonth(Number(e.target.value))}>
-            {[...Array(12).keys()].map(m => (
-              <MenuItem key={m} value={m}>{new Date(0, m).toLocaleString('default', { month: 'long' })}</MenuItem>
-            ))}
-          </Select>
-        </FormControl>
-        <FormControl size="small">
-          <InputLabel>Year</InputLabel>
-          <Select value={selectedYear} label="Year" onChange={e => setSelectedYear(Number(e.target.value))}>
-            {[selectedYear - 2, selectedYear - 1, selectedYear, selectedYear + 1, selectedYear + 2].map(y => (
-              <MenuItem key={y} value={y}>{y}</MenuItem>
-            ))}
-          </Select>
-        </FormControl>
-        <TextField
-          size="small"
-          variant="outlined"
-          placeholder="Search Employees..."
-          value={searchTerm}
-          onChange={handleSearchChange}
-          InputProps={{
-            startAdornment: (
-              <InputAdornment position="start">
-                <SearchIcon />
-              </InputAdornment>
-            ),
-          }}
-          sx={{ width: '300px' }}
-        />
-      </Box>
-
-      <Paper sx={{ overflowX: 'auto', width: '100%' }}>
-        <Table size="small" stickyHeader sx={{ minWidth: 800 }}>
+      <Paper sx={{ mb: 2, overflowX: 'auto', width: '100%' }}>
+        <Table size="small" stickyHeader sx={{ minWidth: 1200 }}>
           <TableHead>
             <TableRow>
-              <TableCell sx={{ position: 'sticky', left: 0, zIndex: 1, backgroundColor: 'white', minWidth: 150 }}>Name</TableCell>
-              <TableCell sx={{ position: 'sticky', left: 150, zIndex: 1, backgroundColor: 'white', minWidth: 120 }}>Department</TableCell>
-              <TableCell sx={{ position: 'sticky', left: 270, zIndex: 1, backgroundColor: 'white', minWidth: 120 }}>Designation</TableCell>
+              <TableCell sx={{ position: 'sticky', left: 0, zIndex: 3, backgroundColor: 'white', minWidth: 150 }}>Name</TableCell>
+              <TableCell sx={{ position: 'sticky', left: 150, zIndex: 3, backgroundColor: 'white', minWidth: 150 }}>Department</TableCell>
+              <TableCell sx={{ position: 'sticky', left: 300, zIndex: 3, backgroundColor: 'white', minWidth: 150 }}>Designation</TableCell>
               {[...Array(daysInMonth).keys()].map(d => (
                 <TableCell key={d} align="center" sx={{ minWidth: 100 }}>{d + 1}</TableCell>
               ))}
-              <TableCell sx={{ position: 'sticky', right: 0, zIndex: 1, backgroundColor: 'white', minWidth: 120 }} align="center">Actions</TableCell>
+              <TableCell sx={{ position: 'sticky', right: 0, zIndex: 3, backgroundColor: 'white', minWidth: 120 }} align="center">Actions</TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
@@ -176,9 +184,9 @@ const DutyRoaster = () => {
               const roster = getEmployeeRoster(emp.id);
               return (
                 <TableRow key={emp.id}>
-                  <TableCell sx={{ position: 'sticky', left: 0, zIndex: 1, backgroundColor: 'white' }}>{emp.firstName} {emp.lastName}</TableCell>
-                  <TableCell sx={{ position: 'sticky', left: 150, zIndex: 1, backgroundColor: 'white' }}>{emp.department}</TableCell>
-                  <TableCell sx={{ position: 'sticky', left: 270, zIndex: 1, backgroundColor: 'white' }}>{emp.jobTitle || emp.designation}</TableCell>
+                  <TableCell sx={{ position: 'sticky', left: 0, zIndex: 2, backgroundColor: 'background.paper' }}>{emp.firstName} {emp.lastName}</TableCell>
+                  <TableCell sx={{ position: 'sticky', left: 150, zIndex: 2, backgroundColor: 'background.paper' }}>{emp.department}</TableCell>
+                  <TableCell sx={{ position: 'sticky', left: 300, zIndex: 2, backgroundColor: 'background.paper' }}>{emp.jobTitle || emp.designation}</TableCell>
                   {[...Array(daysInMonth).keys()].map(d => {
                     const dayKey = d + 1;
                     const shiftsForDay = roster?.shifts?.[dayKey] || [];
@@ -194,15 +202,15 @@ const DutyRoaster = () => {
                       </TableCell>
                     );
                   })}
-                  <TableCell sx={{ position: 'sticky', right: 0, zIndex: 1, backgroundColor: 'white' }} align="center">
+                  <TableCell sx={{ position: 'sticky', right: 0, zIndex: 2, backgroundColor: 'background.paper' }} align="center">
                     <Tooltip title="Edit Roster">
                       <IconButton size="small" onClick={() => handleEditRoster(emp.id)} color="primary">
-                        <EditIcon fontSize="small"/>
+                        <EditIcon fontSize="small" />
                       </IconButton>
                     </Tooltip>
-                    <Tooltip title="Repeat to Next Month">
+                    <Tooltip title="Copy to Next Month">
                       <IconButton size="small" onClick={() => handleRepeatRoster(emp.id)} color="secondary">
-                        <FileCopyIcon fontSize="small"/>
+                        <FileCopyIcon fontSize="small" />
                       </IconButton>
                     </Tooltip>
                   </TableCell>
@@ -226,4 +234,4 @@ const DutyRoaster = () => {
   );
 };
 
-export default DutyRoaster; 
+export default DutyRoaster;
