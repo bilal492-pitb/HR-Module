@@ -1,4 +1,5 @@
-# Use Node.js 22.14.0 Alpine as the base image
+
+# Use a valid Node.js version
 FROM node:22.14.0-alpine
 
 # Set working directory
@@ -17,7 +18,7 @@ USER appuser
 COPY --chown=appuser:appgroup backend/package*.json ./
 
 # Install dependencies
-RUN npm install --production --frozen-lockfile
+RUN npm ci --only=production
 
 # Copy backend source code
 COPY --chown=appuser:appgroup backend/ .
@@ -30,4 +31,4 @@ HEALTHCHECK --interval=30s --timeout=3s \
   CMD wget --no-verbose --tries=1 --spider http://localhost:5000/health || exit 1
 
 # Command to run the application
-CMD ["node", "server.js"]   
+CMD ["node", "server.js"]
