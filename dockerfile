@@ -1,17 +1,20 @@
-#Sample Dockerfile for NodeJS Apps
+# Use Node.js 16 as the base image
+FROM node:22.14.0-alpine
 
-FROM node:16
-
-ENV NODE_ENV=production
-
+# Set working directory
 WORKDIR /app
 
-COPY ["package.json", "package-lock.json*", "./"]
+# Copy package files
+COPY backend/package*.json ./
 
+# Install dependencies
 RUN npm install --production
 
-COPY . .
+# Copy backend source code
+COPY backend/ .
 
-EXPOSE 8080
+# Expose the port your app runs on
+EXPOSE 5000
 
-CMD [ "node", "index.js" ]
+# Command to run the application
+CMD ["npm", "start"]
